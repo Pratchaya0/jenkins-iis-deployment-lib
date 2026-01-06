@@ -1,0 +1,35 @@
+# Jenkins Pipeline Files (Project-specific)
+JenkinsFile
+JenkinsFileDotnet
+JenkinsFileApproval
+
+# Configuration Files (Project-specific)
+*.json
+!package.json
+!package-lock.json
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jenkins Workspace
+workspace/
+target/
+
+# Logs
+*.log
+logs/
+
+# Temporary Files
+*.tmp
+*.bak
+*.backup
+
+# OS Files
+Thumbs.db
+desktop.ini
+
