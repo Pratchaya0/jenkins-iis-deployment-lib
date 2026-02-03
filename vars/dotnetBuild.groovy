@@ -38,7 +38,7 @@ def call(Map config = [:]) {
             cleanupBuildOutput()
             break
         default:
-            error("dotnetBuild: Unknown action '${action}'. Valid actions: buildApplication, runUnitTests, archiveArtifacts")
+            error("dotnetBuild: Unknown action '${action}'. Valid actions: buildApplication, runUnitTests, archiveArtifacts, cleanupBuildOutput")
     }
 }
 
@@ -118,3 +118,17 @@ def archiveArtifacts() {
     logging.logSuccess("Build artifacts archived and ready for transfer")
 }
 
+def cleanupBuildOutput() {
+    node(env.BUILD_AGENT_LABEL) {
+        logging.logSubSection("Cleaning Build Output")
+        powershell """
+            # Clean publish directory and project build output
+            if (Test-Path "${env.PUBLISH_PATH}") {
+                Write-Host "[INFO] Cleaning publish directory: ${env.PUBLISH_PATH}" -ForegroundColor Yellow
+                Remove-Item -Path "${env.PUBLISH_PATH}" -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            
+            Write-Host "[SUCCESS] Build output cleanup completed" -ForegroundColor Green
+        """
+    }
+}
