@@ -34,6 +34,9 @@ def call(Map config = [:]) {
         case 'archiveArtifacts':
             archiveArtifacts()
             break
+        case 'cleanupBuildOutput':
+            cleanupBuildOutput()
+            break
         default:
             error("dotnetBuild: Unknown action '${action}'. Valid actions: buildApplication, runUnitTests, archiveArtifacts")
     }
@@ -47,8 +50,11 @@ def buildApplication(String projectName) {
     logging.logInfo("Configuration", env.CONFIGURATION)
     
     try {
-        dir(projectName) { 
-            def buildPath = "${env.WORKSPACE}\\${env.PUBLISH_PATH}\\${env.PROJECT_NAME}"
+        def buildContext = env.DOTNET_BUILD_CONTEXT ?: projectName
+        def buildOutputSubpath = env.DOTNET_BUILD_OUTPUT_SUBPATH ?: "${env.PUBLISH_PATH}\\${env.PROJECT_NAME}"
+        def buildPath = "${env.WORKSPACE}\\${buildOutputSubpath}"
+
+        dir(buildContext) {
         
             withDotNet(sdk: env.DOTNET_VERSION) {
                 logging.logSubSection("Dependency Restoration")
@@ -86,7 +92,8 @@ def runUnitTests(String testProjectName) {
     logging.logInfo(".NET version", env.DOTNET_VERSION)
     
     try {
-        dir(testProjectName) {
+        def testContext = env.DOTNET_TEST_CONTEXT ?: testProjectName
+        dir(testContext) {
             withDotNet(sdk: env.DOTNET_VERSION) {
                 logging.logSubSection("Test Execution")
                 logging.logInfo("Test command", "dotnet test --no-build --verbosity normal")
