@@ -113,18 +113,18 @@ def installDependencies() {
         
         logging.logInfo("Dependencies", "Installing with npm ci...")
         powershell '''
-            npm ci --prefer-offline --no-audit --no-fund --silent
+            npm ci --prefer-offline --no-audit --no-fund --verbose
             
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "[WARNING] npm ci failed, falling back to npm install..." -ForegroundColor Yellow
-                npm install --prefer-offline --no-audit --no-fund --silent
+                npm install --prefer-offline --no-audit --no-fund --verbose
                 
                 if ($LASTEXITCODE -ne 0) {
                     Write-Host "[WARNING] npm install failed! Attempting clean install..." -ForegroundColor Yellow
                     if (Test-Path "node_modules") {
                         Remove-Item -Path "node_modules" -Recurse -Force -ErrorAction SilentlyContinue
                     }
-                    npm install --prefer-offline --no-audit --no-fund --silent
+                    npm install --prefer-offline --no-audit --no-fund --verbose
                     
                     if ($LASTEXITCODE -ne 0) {
                         Write-Host "[ERROR] Clean npm install failed!" -ForegroundColor Red
