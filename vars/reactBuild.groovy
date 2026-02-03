@@ -152,17 +152,18 @@ def prepareArtifacts(def buildPath) {
                 Write-Host "[ERROR] Build path directory not found: ${env.BUILD_PATH}" -ForegroundColor Red
                 exit 1
             }
+
+            # Check if this is a React build root (look for index.html)
+            if (Test-Path (Join-Path "${env.BUILD_PATH}" "index.html")) {
+                Write-Output "${env.BUILD_PATH}"
+                exit 0
+            }
             
             \$buildDirs = Get-ChildItem -Path "${env.BUILD_PATH}" -Directory | Sort-Object CreationTime -Descending
             
             if (\$buildDirs.Count -eq 0) {
                 # If no subdirectories, use the build path itself
-                if (Test-Path "${env.BUILD_PATH}") {
-                    Write-Output "${env.BUILD_PATH}"
-                } else {
-                    Write-Host "[ERROR] No build output found in: ${env.BUILD_PATH}" -ForegroundColor Red
-                    exit 1
-                }
+                Write-Output "${env.BUILD_PATH}"
             } else {
                 \$latestDir = \$buildDirs[0]
                 \$builtPath = Join-Path "${env.BUILD_PATH}" \$latestDir.Name
