@@ -120,8 +120,16 @@ def installDependencies() {
                 npm install --prefer-offline --no-audit --no-fund --silent
                 
                 if ($LASTEXITCODE -ne 0) {
-                    Write-Host "[ERROR] npm install failed!" -ForegroundColor Red
-                    exit 1
+                    Write-Host "[WARNING] npm install failed! Attempting clean install..." -ForegroundColor Yellow
+                    if (Test-Path "node_modules") {
+                        Remove-Item -Path "node_modules" -Recurse -Force -ErrorAction SilentlyContinue
+                    }
+                    npm install --prefer-offline --no-audit --no-fund --silent
+                    
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-Host "[ERROR] Clean npm install failed!" -ForegroundColor Red
+                        exit 1
+                    }
                 }
             }
             
@@ -232,8 +240,8 @@ def archiveArtifacts() {
 
 def cleanupBuildArtifacts() {
     logging.logError("Build stage failed - cleaning up partial builds")
+    // node_modules is preserved for performance; clean manual artifacts if needed
 }
-
 def cleanupBuildOutput() {
     logging.logSubSection("Cleaning Build Output")
     powershell """
