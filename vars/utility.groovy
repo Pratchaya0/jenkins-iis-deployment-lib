@@ -29,16 +29,20 @@ def cleanupWorkspace() {
     
     // Cleanup build server
     node(env.BUILD_AGENT_LABEL) {
-        logging.logInfo("Cleanup", "Build server workspace")
-        cleanWs(
-            cleanWhenSuccess: true,
-            cleanWhenFailure: true,
-            cleanWhenAborted: true,
-            cleanWhenUnstable: true,
-            deleteDirs: true,
-            disableDeferredWipeout: true,
-            notFailBuild: true,
-        )
+        if (env.CLEAN_WORKSPACE == "true") {
+            logging.logInfo("Cleanup", "Build server workspace")
+            cleanWs(
+                cleanWhenSuccess: true,
+                cleanWhenFailure: true,
+                cleanWhenAborted: true,
+                cleanWhenUnstable: true,
+                deleteDirs: true,
+                disableDeferredWipeout: true,
+                notFailBuild: true,
+            )
+        } else {
+            logging.logInfo("Cleanup", "Skipped build server workspace cleanup (CLEAN_WORKSPACE != true)")
+        }
     }
     
     // Cleanup deploy server (if different)

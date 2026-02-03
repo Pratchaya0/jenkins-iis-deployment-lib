@@ -43,8 +43,11 @@ def call(Map config = [:]) {
         case 'cleanupBuildArtifacts':
             cleanupBuildArtifacts()
             break
+        case 'cleanupBuildOutput':
+            cleanupBuildOutput()
+            break
         default:
-            error("reactBuild: Unknown action '${action}'. Valid actions: buildApplication, configureNPM, installDependencies, prepareArtifacts, archiveArtifacts, cleanupBuildArtifacts")
+            error("reactBuild: Unknown action '${action}'. Valid actions: buildApplication, configureNPM, installDependencies, prepareArtifacts, archiveArtifacts, cleanupBuildArtifacts, cleanupBuildOutput")
     }
 }
 
