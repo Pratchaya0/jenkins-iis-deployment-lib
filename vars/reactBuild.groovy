@@ -232,11 +232,24 @@ def archiveArtifacts() {
 
 def cleanupBuildArtifacts() {
     logging.logError("Build stage failed - cleaning up partial builds")
-    powershell '''
-        if (Test-Path "node_modules") {
-            Write-Host "[INFO] Cleaning up node_modules..." -ForegroundColor Yellow
-            Remove-Item -Path "node_modules" -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+def cleanupBuildOutput() {
+    logging.logSubSection("Cleaning Build Output")
+    powershell """
+        # Clean build output directory
+        if (Test-Path "${env.BUILD_PATH}") {
+            Write-Host "[INFO] Cleaning build directory: ${env.BUILD_PATH}" -ForegroundColor Yellow
+            Remove-Item -Path "${env.BUILD_PATH}" -Recurse -Force -ErrorAction SilentlyContinue
         }
-    '''
+        
+        # Clean publish directory
+        if (Test-Path "${env.PUBLISH_PATH}") {
+            Write-Host "[INFO] Cleaning publish directory: ${env.PUBLISH_PATH}" -ForegroundColor Yellow
+            Remove-Item -Path "${env.PUBLISH_PATH}" -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+        Write-Host "[SUCCESS] Build output cleanup completed" -ForegroundColor Green
+    """
 }
 
