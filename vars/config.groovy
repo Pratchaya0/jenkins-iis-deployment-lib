@@ -114,6 +114,16 @@ def setupEnvironment() {
     } else if (isReactProject) {
         env.BUILD_PATH = project.environment_config?.build_path ?: env.ENVIRONMENT.toLowerCase()
         env.BUILD_COMMAND = project.environment_config?.build_command ?: "npm run build:${env.ENVIRONMENT.toLowerCase()}"
+        // Directory to run npm/build in. Optional: set in environment_config.react_build_context; default: subfolder when multi-project (type "1") and project_name set, else "."
+        def explicitContext = project.environment_config?.react_build_context?.toString()?.trim()
+        env.REACT_BUILD_CONTEXT = (explicitContext != null && !explicitContext.isEmpty()) ? explicitContext : ((env.PROJECT_STRUCTURE_TYPE == "1" && project.project_name) ? project.project_name : ".")
+        // Relative path under workspace where build artifacts are placed (buildPath = WORKSPACE + this). Optional: set in environment_config.react_build_output_subpath; default: publish_path + project name.
+        def explicitSubpath = project.environment_config?.react_build_output_subpath?.toString()?.trim()
+        env.REACT_BUILD_OUTPUT_SUBPATH = (explicitSubpath != null && !explicitSubpath.isEmpty()) ? explicitSubpath : "${env.PUBLISH_PATH}\\${env.PROJECT_NAME}"
+        // Node.js tool name in Jenkins (optional). Default: "node ${NODE_VERSION}" e.g. "node 16.15.0"
+        env.NODE_INSTALLATION_NAME = project.environment_config?.node_installation_name ?: "node ${env.NODE_VERSION}"
+        // NPM cache directory on build agent (optional). Default: C:\npm-cache
+        env.NPM_CACHE_PATH = project.environment_config?.npm_cache_path ?: "C:\\npm-cache"
     }
     
     // GitHub Configuration

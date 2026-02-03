@@ -50,7 +50,8 @@ def call(Map config = [:]) {
 
 def configureNPM() {
     logging.logSubSection("NPM Configuration")
-    powershell '''
+    def cachePath = env.NPM_CACHE_PATH ?: "C:\\npm-cache"
+    powershell """
         # Configure npm for performance
         npm config set audit false
         npm config set fund false
@@ -58,15 +59,15 @@ def configureNPM() {
         npm config set progress false
         npm config set loglevel warn
         
-        $cacheDir = "C:\\npm-cache"
-        if (-not (Test-Path $cacheDir)) {
-            New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
-            Write-Host "[INFO] NPM cache directory created: $cacheDir" -ForegroundColor Cyan
+        \$cacheDir = "${cachePath.replace('\\', '\\\\')}"
+        if (-not (Test-Path \$cacheDir)) {
+            New-Item -ItemType Directory -Path \$cacheDir -Force | Out-Null
+            Write-Host "[INFO] NPM cache directory created: \$cacheDir" -ForegroundColor Cyan
         }
-        npm config set cache $cacheDir
+        npm config set cache \$cacheDir
         
         Write-Host "[SUCCESS] NPM optimizations configured" -ForegroundColor Green
-    '''
+    """
 }
 
 def installDependencies() {
@@ -219,7 +220,8 @@ def archiveArtifacts() {
     logging.logSubSection("Artifact Archiving")
     
     archiveArtifacts artifacts: "${env.PUBLISH_PATH}/**/*", fingerprint: true
-    stash name: 'multi-server-react-build-artifacts', includes: "${env.PUBLISH_PATH}/**/*"
+    def stashName = env.ARTIFACT_NAME ?: "${env.PROJECT_NAME}-build-artifacts"
+    stash name: stashName, includes: "${env.PUBLISH_PATH}/**/*"
     
     logging.logSuccess("Build artifacts archived and ready for transfer")
 }

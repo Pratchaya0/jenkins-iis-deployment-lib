@@ -58,23 +58,80 @@ URL: ${buildUrl}"""
         echo "=== Notification Message ==="
         echo message
         
-        // Send notification
-        try {
-            build job: 'JenkinUtilities/SendDiscordNotification', 
-                  wait: false,
-                  propagate: false,
-                  parameters: [
-                      string(name: 'MESSAGE', value: message),
-                      string(name: 'STATUS', value: status)
-                  ]
-            echo "Discord notification sent successfully"
-        } catch (Exception notifyEx) {
-            echo "Failed to send Discord notification: ${notifyEx.getMessage()}"
-        }
+        // Send Discord notification inline (no separate pipeline = no SPOF/deadlock)
+        sendDiscordWebhook(message, status)
         
     } catch (Exception mainEx) {
         echo "ERROR in post-build notification: ${mainEx.getMessage()}"
         mainEx.printStackTrace()
+    }
+}
+
+/**
+ * Sends Discord notification via webhook directly (no separate pipeline).
+ * Requires env.WEBHOOK_URL and env.AVATAR_URL to be set (e.g. in pipeline environment or Jenkins global).
+ */
+def sendDiscordWebhook(String message, String status) {
+    def webhookUrl = env.WEBHOOK_URL
+    def avatarUrl = env.AVATAR_URL ?: 'https://lineagentapi.uatsiamsmile.com/Resource/image317735_20251002_110824.png'
+    if (!webhookUrl?.trim()) {
+        echo "WEBHOOK_URL not set, skipping Discord notification"
+        return
+    }
+    try {
+        def color = 3447003   // blue
+        def emoji = 'ℹ️'
+        switch (status?.toUpperCase()) {
+            case 'SUCCESS':
+                color = 3066993
+                emoji = '✅'
+                break
+            case 'FAILURE':
+                color = 15158332
+                emoji = '❌'
+                break
+            case 'WARNING':
+                color = 16776960
+                emoji = '⚠️'
+                break
+        }
+        def statusTitle = "[${status ?: 'INFO'}]"
+        def utcNow = new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone('UTC'))
+        powershell(
+            script: """
+                [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+                [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+                \$webhook = '${webhookUrl.replace("'", "''")}'
+                \$avatar = '${avatarUrl.replace("'", "''")}'
+                \$messageContent = @'
+${(message ?: '').replace("'", "''")}
+'@
+                \$embed = @{
+                    title = '${statusTitle.replace("'", "''")}'
+                    description = \$messageContent
+                    color = ${color}
+                    timestamp = '${utcNow}'
+                }
+                \$body = @{
+                    username = 'Jenkins UAT'
+                    avatar_url = \$avatar
+                    embeds = @(\$embed)
+                }
+                \$jsonString = \$body | ConvertTo-Json -Depth 4 -Compress
+                \$jsonBytes = [System.Text.Encoding]::UTF8.GetBytes(\$jsonString)
+                try {
+                    Invoke-RestMethod -Uri \$webhook -Method Post -Body \$jsonBytes -ContentType 'application/json; charset=utf-8'
+                    Write-Host '✓ Discord notification sent successfully!'
+                } catch {
+                    Write-Host "✗ Error: \$(\$_.Exception.Message)"
+                    exit 1
+                }
+            """,
+            returnStatus: true
+        )
+        echo "Discord notification sent successfully"
+    } catch (Exception ex) {
+        echo "Failed to send Discord notification: ${ex.getMessage()}"
     }
 }
 

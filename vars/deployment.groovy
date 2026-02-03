@@ -25,6 +25,9 @@ def call(Map config = [:]) {
         case 'validateEnvironment':
             validateEnvironment()
             break
+        case 'validateEnvironmentReact':
+            validateEnvironmentReact()
+            break
         case 'validateProjectConfig':
             if (!config.project) {
                 error("deployment: 'project' parameter is required for validateProjectConfig")
@@ -53,7 +56,7 @@ def call(Map config = [:]) {
             cleanupBackups(config.project)
             break
         default:
-            error("deployment: Unknown action '${action}'. Valid actions: validateEnvironment, validateProjectConfig, transferArtifacts, manageIISService, createBackup, cleanupBackups")
+            error("deployment: Unknown action '${action}'. Valid actions: validateEnvironment, validateEnvironmentReact, validateProjectConfig, transferArtifacts, manageIISService, createBackup, cleanupBackups")
     }
 }
 
@@ -63,6 +66,36 @@ def validateEnvironment() {
         "BASE_WEBSITE_PATH", "BASE_BACKUPS_PATH", "CONFIGURATION", "PUBLISH_PATH",
         "GITHUB_BRANCH_NAME", "GITHUB_TOKEN_CREDENTIAL_ID", "CONFIG_FILE_ID",
         "ENVIRONMENT", "DEPLOYMENT_ENVIRONMENT", "ENVIRONMENT_URL", "ARTIFACT_NAME"
+    ]
+
+    powershell """
+        \$RequiredSettings = @(${requiredSettings.collect { "\"${it}\"" }.join(', ')})
+
+        \$MissingSettings = @()
+        foreach (\$EnvVar in \$RequiredSettings) {
+            \$EnvVarValue = [System.Environment]::GetEnvironmentVariable(\$EnvVar)
+            if ([string]::IsNullOrEmpty(\$EnvVarValue)) {
+                \$MissingSettings += \$EnvVar
+            }
+        }
+
+        if (\$MissingSettings.Count -gt 0) {
+            Write-Host "[ERROR] Missing required environment variables:" -ForegroundColor Red
+            \$MissingSettings | ForEach-Object { Write-Host "  - \$_" -ForegroundColor Red }
+            exit 1
+        } else {
+            Write-Host "[SUCCESS] All environment variables validated" -ForegroundColor Green
+        }
+    """
+}
+
+def validateEnvironmentReact() {
+    def requiredSettings = [
+        "PROJECT_NAME", "NODE_VERSION", "BUILD_AGENT_LABEL", "DEPLOY_AGENT_LABEL",
+        "BASE_WEBSITE_PATH", "BASE_BACKUPS_PATH", "ENVIRONMENT", "BUILD_PATH",
+        "BUILD_COMMAND", "GITHUB_BRANCH_NAME", "CONFIG_FILE_ID", "GITHUB_REPO_OWNER",
+        "GITHUB_REPO_NAME", "GITHUB_STATUS_CONTEXT", "GITHUB_TOKEN_CREDENTIAL_ID",
+        "DEPLOYMENT_ENVIRONMENT", "ENVIRONMENT_URL", "ARTIFACT_NAME"
     ]
 
     powershell """
@@ -147,15 +180,15 @@ def validateProjectConfig(def project) {
         error("IIS management enabled but iis_website_name is not defined")
     }
     
-    // Validate cleanup configuration
+    // Validate cleanup configuration: when is_cleanup, require max_backups_to_keep (or legacy amount_files_delete) >= 1
     if (project.is_cleanup) {
-        def retention = project.backup_file_retention_months
-        def deleteCount = project.amount_files_delete
-        if ((retention == null || retention.toString().trim().isEmpty()) && 
-            (deleteCount == null || deleteCount.toString().trim().isEmpty())) {
-            logging.logError("Cleanup enabled but retention configuration is missing")
-            github.updateGitHubStatus('error', 'Configuration Error', "Missing cleanup configuration")
-            error("Cleanup enabled but retention configuration is missing")
+        def maxKeep = project.max_backups_to_keep
+        def legacyKeep = project.amount_files_delete
+        def n = (maxKeep != null && maxKeep.toString().trim()) ? maxKeep.toString().toInteger() : (legacyKeep != null && legacyKeep.toString().trim() ? legacyKeep.toString().toInteger() : null)
+        if (n == null || n < 1) {
+            logging.logError("Cleanup enabled but max_backups_to_keep (or amount_files_delete) is missing or < 1")
+            github.updateGitHubStatus('error', 'Configuration Error', "Set max_backups_to_keep (e.g. 1, 2, 3)")
+            error("Cleanup enabled: set max_backups_to_keep >= 1")
         }
     }
     
@@ -182,11 +215,13 @@ def transferArtifacts() {
         logging.logWarning("copyArtifacts failed, trying fallback method")
         
         try {
-            // Try common stash names
-            def stashNames = [
-                'multi-server-build-artifacts',      // .NET projects
-                'multi-server-react-build-artifacts' // React projects
-            ]
+            // Try artifact name (React stash) first, then common stash names
+            def stashNames = []
+            if (env.ARTIFACT_NAME?.trim()) {
+                stashNames.add(env.ARTIFACT_NAME.trim())
+            }
+            stashNames.addAll(['multi-server-build-artifacts', 'multi-server-react-build-artifacts'])
+            stashNames = stashNames.unique()
             
             def stashFound = false
             for (stashName in stashNames) {
@@ -377,19 +412,18 @@ def cleanupBackups(def project) {
     logging.logInfo("Project", env.PROJECT_NAME)
     
     def deletePath = "${env.BASE_BACKUPS_PATH}\\${project.folder_website_name}"
-    def retentionMonths = project.backup_file_retention_months ?: 0
-    def maxFilesToKeep = project.amount_files_delete ?: 3  // Default to keep 3 latest builds
+    // Prefer max_backups_to_keep; fall back to legacy amount_files_delete, then default 2
+    def maxBackupsToKeep = (project.max_backups_to_keep != null && project.max_backups_to_keep.toString().trim()) ? project.max_backups_to_keep.toString().toInteger() : ((project.amount_files_delete != null && project.amount_files_delete.toString().trim()) ? project.amount_files_delete.toString().toInteger() : 2)
     
-    // Always use "keep last N builds" strategy for better control
-    logging.logInfo("Cleanup strategy", "Keep newest ${maxFilesToKeep} backup(s)")
+    logging.logInfo("Cleanup strategy", "Keep newest ${maxBackupsToKeep} backup(s)")
     powershell """
         if (Test-Path '${deletePath}') {
             \$folders = Get-ChildItem -Path '${deletePath}' -Directory | 
                         Sort-Object CreationTime -Descending
             
-            if (\$folders.Count -gt ${maxFilesToKeep}) {
-                \$foldersToDelete = \$folders | Select-Object -Skip ${maxFilesToKeep}
-                Write-Host "[INFO] Found \$(\$folders.Count) backups, keeping newest ${maxFilesToKeep}, removing \$(\$foldersToDelete.Count)" -ForegroundColor Cyan
+            if (\$folders.Count -gt ${maxBackupsToKeep}) {
+                \$foldersToDelete = \$folders | Select-Object -Skip ${maxBackupsToKeep}
+                Write-Host "[INFO] Found \$(\$folders.Count) backups, keeping newest ${maxBackupsToKeep}, removing \$(\$foldersToDelete.Count)" -ForegroundColor Cyan
                 
                 foreach (\$folder in \$foldersToDelete) {
                     \$backupDate = \$folder.CreationTime.ToString('yyyy-MM-dd HH:mm')
