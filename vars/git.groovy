@@ -27,7 +27,9 @@ def call(Map config = [:]) {
 def checkoutCode() {
     logging.logSubSection("Source Code Checkout")
     
-    cleanWs()
+    if (env.CLEAN_WORKSPACE == "true") {
+        cleanWs()
+    }
     checkout scmGit(
         branches: [[name: "*/${env.GITHUB_BRANCH_NAME}"]], 
         extensions: [], 
