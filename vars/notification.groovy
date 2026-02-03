@@ -115,39 +115,42 @@ def sendDiscordWebhook(String message, String status) {
         }
         def statusTitle = "[${status ?: 'INFO'}]"
         def utcNow = new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone('UTC'))
-        powershell(
-            script: """
-                [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-                [Console]::InputEncoding = [System.Text.Encoding]::UTF8
-                \$webhook = '${webhookUrl.replace("'", "''")}'
-                \$avatar = '${avatarUrl.replace("'", "''")}'
-                \$username = '${username.replace("'", "''")}'
-                \$messageContent = @'
-${(message ?: '').replace("'", "''")}
-'@
-                \$embed = @{
-                    title = '${statusTitle.replace("'", "''")}'
-                    description = \$messageContent
-                    color = ${color}
-                    timestamp = '${utcNow}'
-                }
-                \$body = @{
-                    username = \$username
-                    avatar_url = \$avatar
-                    embeds = @(\$embed)
-                }
-                \$jsonString = \$body | ConvertTo-Json -Depth 4 -Compress
-                \$jsonBytes = [System.Text.Encoding]::UTF8.GetBytes(\$jsonString)
-                try {
-                    Invoke-RestMethod -Uri \$webhook -Method Post -Body \$jsonBytes -ContentType 'application/json; charset=utf-8'
-                    Write-Host '✓ Discord notification sent successfully!'
-                } catch {
-                    Write-Host "✗ Error: \$(\$_.Exception.Message)"
-                    exit 1
-                }
-            """,
-            returnStatus: true
-        )
+        
+        node(env.BUILD_AGENT_LABEL ?: 'built-in') {
+            powershell(
+                script: """
+                    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+                    [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+                    \$webhook = '${webhookUrl.replace("'", "''")}'
+                    \$avatar = '${avatarUrl.replace("'", "''")}'
+                    \$username = '${username.replace("'", "''")}'
+                    \$messageContent = @'
+    ${(message ?: '').replace("'", "''")}
+    '@
+                    \$embed = @{
+                        title = '${statusTitle.replace("'", "''")}'
+                        description = \$messageContent
+                        color = ${color}
+                        timestamp = '${utcNow}'
+                    }
+                    \$body = @{
+                        username = \$username
+                        avatar_url = \$avatar
+                        embeds = @(\$embed)
+                    }
+                    \$jsonString = \$body | ConvertTo-Json -Depth 4 -Compress
+                    \$jsonBytes = [System.Text.Encoding]::UTF8.GetBytes(\$jsonString)
+                    try {
+                        Invoke-RestMethod -Uri \$webhook -Method Post -Body \$jsonBytes -ContentType 'application/json; charset=utf-8'
+                        Write-Host '✓ Discord notification sent successfully!'
+                    } catch {
+                        Write-Host "✗ Error: \$(\$_.Exception.Message)"
+                        exit 1
+                    }
+                """,
+                returnStatus: true
+            )
+        }
         echo "Discord notification sent successfully"
     } catch (Exception ex) {
         echo "Failed to send Discord notification: ${ex.getMessage()}"
