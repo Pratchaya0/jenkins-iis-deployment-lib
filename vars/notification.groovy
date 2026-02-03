@@ -126,7 +126,7 @@ def sendDiscordWebhook(String message, String status) {
                     \$username = '${username.replace("'", "''")}'
                     \$messageContent = @'
     ${(message ?: '').replace("'", "''")}
-    '@
+'@
                     \$embed = @{
                         title = '${statusTitle.replace("'", "''")}'
                         description = \$messageContent
