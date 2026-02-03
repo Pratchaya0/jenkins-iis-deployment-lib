@@ -74,6 +74,24 @@ URL: ${buildUrl}"""
 def sendDiscordWebhook(String message, String status) {
     def webhookUrl = env.WEBHOOK_URL
     def avatarUrl = env.AVATAR_URL ?: 'https://lineagentapi.uatsiamsmile.com/Resource/image317735_20251002_110824.png'
+    def username = 'Jenkins'
+
+    // Try to load from config
+    if (env.CONFIG) {
+        try {
+            def config = readJSON text: env.CONFIG
+            // config is a list, project is first element
+             def project = config[0]
+             if (project && project.environment_config) {
+                 if (project.environment_config.webhook_url) webhookUrl = project.environment_config.webhook_url
+                 if (project.environment_config.avatar_url) avatarUrl = project.environment_config.avatar_url
+                 if (project.environment_config.username) username = project.environment_config.username
+             }
+        } catch (Exception e) {
+            echo "Warning: Could not read config for notification settings: ${e.message}"
+        }
+    }
+
     if (!webhookUrl?.trim()) {
         echo "WEBHOOK_URL not set, skipping Discord notification"
         return
@@ -103,6 +121,7 @@ def sendDiscordWebhook(String message, String status) {
                 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
                 \$webhook = '${webhookUrl.replace("'", "''")}'
                 \$avatar = '${avatarUrl.replace("'", "''")}'
+                \$username = '${username.replace("'", "''")}'
                 \$messageContent = @'
 ${(message ?: '').replace("'", "''")}
 '@
@@ -113,7 +132,7 @@ ${(message ?: '').replace("'", "''")}
                     timestamp = '${utcNow}'
                 }
                 \$body = @{
-                    username = 'Jenkins UAT'
+                    username = \$username
                     avatar_url = \$avatar
                     embeds = @(\$embed)
                 }
