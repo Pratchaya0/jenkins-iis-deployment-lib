@@ -85,7 +85,12 @@ def setupEnvironment() {
         env.PROJECT_TEST_NAME = project.project_test_name ?: ""
         env.DOTNET_VERSION = project.dotnet_version
         env.IS_RUN_BUILD = project.is_run_build.toString()
+        env.IS_RUN_BUILD = project.is_run_build.toString()
         env.IS_RUN_TEST = project.is_run_test.toString()
+        // Allow overriding build context (directory) and output subpath
+        env.DOTNET_BUILD_CONTEXT = project.dotnet_build_context ?: ""
+        env.DOTNET_TEST_CONTEXT = project.dotnet_test_context ?: ""
+        env.DOTNET_BUILD_OUTPUT_SUBPATH = project.dotnet_build_output_subpath ?: ""
         logging.logInfo("Project type", ".NET Application")
     } else if (isReactProject) {
         env.NODE_VERSION = project.node_version
