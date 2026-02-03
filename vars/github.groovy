@@ -5,7 +5,7 @@
  * Usage:
  *   github.updateGitHubStatus('success', 'Build passed', 'Jenkins Build')
  *   github.createDeployment('production', 'main')
- *   github.trackDeployment('staging') { /* deployment steps */ }
+ *   github.trackDeployment('staging') { deployment steps }
  * 
  * Or as a step:
  *   github(status: [state: 'success', description: 'Build passed', context: 'Jenkins Build'])

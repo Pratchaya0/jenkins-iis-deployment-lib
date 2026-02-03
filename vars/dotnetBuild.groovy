@@ -104,8 +104,9 @@ def runUnitTests(String testProjectName) {
 def archiveArtifacts() {
     logging.logSubSection("Artifact Archiving")
     
+    def stashName = (env.ARTIFACT_NAME?.trim()) ? env.ARTIFACT_NAME.trim() : 'multi-server-build-artifacts'
     archiveArtifacts artifacts: "${env.PUBLISH_PATH}/**/*", fingerprint: true
-    stash name: 'multi-server-build-artifacts', includes: "${env.PUBLISH_PATH}/**/*"
+    stash name: stashName, includes: "${env.PUBLISH_PATH}/**/*"
     
     logging.logSuccess("Build artifacts archived and ready for transfer")
 }
