@@ -50,7 +50,21 @@ def buildApplication(String projectName) {
     logging.logInfo("Configuration", env.CONFIGURATION)
     
     try {
-        def buildContext = env.DOTNET_BUILD_CONTEXT ?: projectName
+        // Auto-detect build context logic
+        def buildContext = env.DOTNET_BUILD_CONTEXT // Explicit override
+        
+        if (!buildContext) {
+            if (fileExists(projectName)) {
+                buildContext = projectName
+                logging.logInfo("Build Context", "Found project directory '${projectName}'")
+            } else {
+                buildContext = "."
+                logging.logInfo("Build Context", "Project directory '${projectName}' not found, defaulting to root '.'")
+            }
+        } else {
+             logging.logInfo("Build Context", "Using explicit configuration '${buildContext}'")
+        }
+
         def buildOutputSubpath = env.DOTNET_BUILD_OUTPUT_SUBPATH ?: "${env.PUBLISH_PATH}\\${env.PROJECT_NAME}"
         def buildPath = "${env.WORKSPACE}\\${buildOutputSubpath}"
 
