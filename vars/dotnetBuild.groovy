@@ -54,12 +54,25 @@ def buildApplication(String projectName) {
         def buildContext = env.DOTNET_BUILD_CONTEXT // Explicit override
         
         if (!buildContext) {
-            if (fileExists(projectName)) {
+            // Priority 1: Check for project/solution file in subdirectory (Standard convention)
+            if (fileExists("${projectName}/${projectName}.csproj") || fileExists("${projectName}/${projectName}.sln")) {
                 buildContext = projectName
-                logging.logInfo("Build Context", "Found project directory '${projectName}'")
-            } else {
+                logging.logInfo("Build Context", "Found project/solution file in directory '${projectName}'")
+            }
+            // Priority 2: Check for project/solution file in root (This user's case)
+            else if (fileExists("${projectName}.csproj") || fileExists("${projectName}.sln")) {
                 buildContext = "."
-                logging.logInfo("Build Context", "Project directory '${projectName}' not found, defaulting to root '.'")
+                logging.logInfo("Build Context", "Found project/solution file in root directory")
+            }
+            // Priority 3: Fallback to directory existence if it exists (Legacy/Safety)
+            else if (fileExists(projectName)) {
+                buildContext = projectName
+                logging.logInfo("Build Context", "Found directory '${projectName}', using as context")
+            }
+            // Default: Root
+            else {
+                buildContext = "."
+                logging.logInfo("Build Context", "Defaulting to root '.'")
             }
         } else {
              logging.logInfo("Build Context", "Using explicit configuration '${buildContext}'")
