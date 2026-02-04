@@ -82,22 +82,33 @@ def buildApplication(String projectName) {
         def buildPath = "${env.WORKSPACE}\\${buildOutputSubpath}"
 
         dir(buildContext) {
+            // Identify specific project/solution file to avoid MSB1011 (ambiguous project)
+            def targetFile = ""
+            if (fileExists("${env.PROJECT_NAME}.sln")) {
+                targetFile = "${env.PROJECT_NAME}.sln"
+                logging.logInfo("Target File", "Found solution file: ${targetFile}")
+            } else if (fileExists("${env.PROJECT_NAME}.csproj")) {
+                targetFile = "${env.PROJECT_NAME}.csproj"
+                logging.logInfo("Target File", "Found project file: ${targetFile}")
+            } else {
+                logging.logInfo("Target File", "Auto-detecting (no matching .sln/.csproj found)")
+            }
         
             withDotNet(sdk: env.DOTNET_VERSION) {
                 logging.logSubSection("Dependency Restoration")
-                logging.logInfo("Restore command", "dotnet restore")
-                bat "dotnet restore"
+                logging.logInfo("Restore command", "dotnet restore ${targetFile}")
+                bat "dotnet restore \"${targetFile}\""
                 logging.logSuccess("Dependencies restored successfully")
                 
                 logging.logSubSection("Application Compilation")
-                logging.logInfo("Build command", "dotnet build --configuration ${env.CONFIGURATION} --no-restore")
-                bat "dotnet build --configuration ${env.CONFIGURATION} --no-restore"
+                logging.logInfo("Build command", "dotnet build --configuration ${env.CONFIGURATION} --no-restore ${targetFile}")
+                bat "dotnet build --configuration ${env.CONFIGURATION} --no-restore \"${targetFile}\""
                 logging.logSuccess("Application compiled successfully")
                 
                 logging.logSubSection("Publication for Deployment")
-                logging.logInfo("Publish command", "dotnet publish --configuration ${env.CONFIGURATION} --no-build")
+                logging.logInfo("Publish command", "dotnet publish --configuration ${env.CONFIGURATION} --no-build ${targetFile}")
                 logging.logInfo("Output directory", buildPath)
-                bat "dotnet publish --configuration ${env.CONFIGURATION} --no-build --output \"${buildPath}\""
+                bat "dotnet publish --configuration ${env.CONFIGURATION} --no-build --output \"${buildPath}\" \"${targetFile}\""
                 logging.logSuccess("Application published successfully")
             }
             
