@@ -369,6 +369,50 @@ def manageIISService(def project, String action) {
                 }
             """
         }
+    } else if (action == "restart") {
+        if (project.app_pool_name) {
+            logging.logSubSection("Restarting Application Pool")
+            logging.logInfo("App Pool", project.app_pool_name)
+            
+            powershell """
+                Import-Module WebAdministration -ErrorAction Stop
+                
+                try {
+                    if (Get-WebAppPoolState -Name '${project.app_pool_name}' -ErrorAction SilentlyContinue) {
+                        Restart-WebAppPool -Name '${project.app_pool_name}'
+                        Write-Host "[SUCCESS] App Pool restarted: ${project.app_pool_name}" -ForegroundColor Green
+                    } else {
+                         Write-Host "[WARNING] App Pool not found: ${project.app_pool_name}" -ForegroundColor Yellow
+                    }
+                } catch {
+                    Write-Host "[ERROR] Failed to restart App Pool: \$(\$_.Exception.Message)" -ForegroundColor Red
+                    exit 1
+                }
+            """
+        }
+        
+        if (project.iis_website_name) {
+            logging.logSubSection("Restarting IIS Website")
+            logging.logInfo("Website", project.iis_website_name)
+            
+            powershell """
+                Import-Module WebAdministration -ErrorAction Stop
+                
+                try {
+                    if (Get-WebsiteState -Name '${project.iis_website_name}' -ErrorAction SilentlyContinue) {
+                        Stop-Website -Name '${project.iis_website_name}'
+                        Start-Sleep -Seconds 2
+                        Start-Website -Name '${project.iis_website_name}'
+                        Write-Host "[SUCCESS] Website restarted: ${project.iis_website_name}" -ForegroundColor Green
+                    } else {
+                         Write-Host "[WARNING] Website not found: ${project.iis_website_name}" -ForegroundColor Yellow
+                    }
+                } catch {
+                    Write-Host "[ERROR] Failed to restart Website: \$(\$_.Exception.Message)" -ForegroundColor Red
+                    exit 1
+                }
+            """
+        }
     }
 }
 
